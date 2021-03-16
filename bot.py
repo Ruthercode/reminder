@@ -15,4 +15,5 @@ def send_welcome(message):
 def get_text_messages(message):
     pass
         
+print("It is works!")
 bot.polling(none_stop=True)
