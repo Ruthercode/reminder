@@ -1,5 +1,7 @@
 import pymongo
 import os
+#import config
+
 client = pymongo.MongoClient(os.environ["MONGODB_URI"])
 db = client['SeriesDB']
 notes_collection = db["notes"]
