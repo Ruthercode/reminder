@@ -49,6 +49,7 @@ def save_repeat_note(message):
 
     if (len(raw_message) < 3):
         bot.send_message(chat_id=message.chat.id, text=bad_text)
+        return
     
     repeat_time = None
     if not raw_message[-1].isdigit():
@@ -96,13 +97,18 @@ def show_reminders(message):
 
     if message.text.split()[0] == "/dismiss":
         data = data_once + data_repeat
-        msg = bot.reply_to(message, 'Введите номер удаляемого элемента. 0 для отмены')
+        msg = bot.reply_to(message, 'Введите номер удаляемого элемента. 0 для отмены, -1 для удаления всего')
         bot.register_next_step_handler(msg, dismiss_reminders, data)
 
 def dismiss_reminders(message, data):
     try:
+        id_to_delete = int(message.text)
+
         for item in data:
-            if item["id"] == int(message.text):
+            if id_to_delete == -1:
+                database.delete_document(database.notes_collection, {"_id" : item["_id"]})
+                database.delete_document(database.repeat_notes_collection, {"_id" : item["_id"]})
+            elif item["id"] == id_to_delete:
                 database.delete_document(database.notes_collection, {"_id" : item["_id"]})
                 database.delete_document(database.repeat_notes_collection, {"_id" : item["_id"]})
                 bot.reply_to(message, "Удалено")
@@ -113,6 +119,8 @@ def dismiss_reminders(message, data):
     
     if (int(message.text) == 0):
         bot.reply_to(message, "Отменено")
+    elif(int(message.text) == -1):
+        bot.reply_to(message, "Все напоминания удалены")
     else:
         bot.reply_to(message, "Номер найти не удалось")
 
