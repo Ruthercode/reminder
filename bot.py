@@ -1,10 +1,13 @@
-import telebot
 import os
-import database
-import utils
-import schedule
+
 from threading import Thread
 from time import sleep
+
+import telebot
+import schedule
+
+import database
+import utils
 
 
 bot = telebot.TeleBot(os.environ["TOKEN"])
@@ -12,12 +15,13 @@ bot = telebot.TeleBot(os.environ["TOKEN"])
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    bot.reply_to(message, '/help - сводка о командах\n' +
-                          '/add - добавление разового напоминания напоминания\n'
-                          # "/add_weekly - добавление повторяющегося напоминания в разные дни недели\n",
-                          "/add_repeat - добавление повторяющегося напоминания с различным интервалом\n",
-                          "/show - выводит информацию о всех имеющихся напоминаниях" 
-                        ) 
+    bot.reply_to(message, 
+                '/help - сводка о командах\n' +
+                '/add - добавление разового напоминания напоминания\n'
+                # "/add_weekly - добавление повторяющегося напоминания в разные дни недели\n",
+                "/add_repeat - добавление повторяющегося напоминания с различным интервалом\n",
+                "/show - выводит информацию о всех имеющихся напоминаниях" 
+                ) 
 
 
 @bot.message_handler(commands=['add'])
@@ -60,7 +64,9 @@ def read_message_repeat(message):
 
 def read_time_repeat(message):
     data = [message.text]
-    msg = bot.reply_to(message, 'Введите интервал повторения напоминания в секундах в формате числа или выражения')
+    msg = bot.reply_to(message, 
+                    'Введите интервал повторения напоминания в секундах в формате числа или выражения')
+
     bot.register_next_step_handler(msg, compute_note_repeat, data)
 
 def compute_note_repeat(message, data):
@@ -177,8 +183,9 @@ def schedule_check():
         schedule.run_pending()
         sleep(1)
 
-schedule.every(1).second.do(remind)
-Thread(target=schedule_check).start() 
+if __name__ == "__main__":
+    schedule.every(1).second.do(remind)
+    Thread(target=schedule_check).start() 
 
-bot.enable_save_next_step_handlers(delay=2)
-bot.polling(none_stop=True)
+    bot.enable_save_next_step_handlers(delay=2)
+    bot.polling(none_stop=True)
