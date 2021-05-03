@@ -3,6 +3,10 @@ from pprint import pprint
 import os
 import database
 import utils
+import schedule
+from threading import Thread
+from time import sleep
+
 #import config
 
 bot = telebot.TeleBot(os.environ["TOKEN"])
@@ -128,6 +132,29 @@ def dismiss_reminders(message, data):
 @bot.message_handler(content_types=['text'])
 def get_text_messages(message):
     pass
+
+
+def remind():
+    data_once = database.find_document(database.notes_collection, {}, multiple=True)
+
+    for item in data_once:
+        if utils.get_current_timestamp() >= item["timestamp"]:
+            chat_id = item["chat_id"]
+            message = item["message"]
+
+            database.delete_document(database.notes_collection, {"_id" : item["_id"]})
+            
+            bot.send_message(chat_id=chat_id, text=message)
+
+
+
+def schedule_check():
+    while True:
+        schedule.run_pending()
+        sleep(1)
+
+schedule.every(1).second.do(remind)
+Thread(target=schedule_check).start() 
 
 bot.enable_save_next_step_handlers(delay=2)
 bot.polling(none_stop=True)
