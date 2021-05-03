@@ -1,5 +1,4 @@
 import telebot
-from pprint import pprint
 import os
 import database
 import utils
@@ -7,34 +6,44 @@ import schedule
 from threading import Thread
 from time import sleep
 
-#import config
 
 bot = telebot.TeleBot(os.environ["TOKEN"])
+
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     bot.reply_to(message, '/help - сводка о командах\n' +
                           '/add - добавление разового напоминания напоминания\n'
-                          # "Ваше сообщение" "дата в формате год.месяц.день часы.минуты.секунды" 
-                          "/add_weekly - добавление повторяющегося напоминания в разные дни недели\n",
+                          # "/add_weekly - добавление повторяющегося напоминания в разные дни недели\n",
                           "/add_repeat - добавление повторяющегося напоминания с различным интервалом\n",
-                          "/show_reminders - выводит информацию о всех имеющихся напоминаниях" 
+                          "/show - выводит информацию о всех имеющихся напоминаниях" 
                         ) 
 
+
 @bot.message_handler(commands=['add'])
-def save_note(message):
-    raw_message = message.text.split()
-    
-    bad_text = "Неверно указанная команда. правильный формат: /add {message} {yyyy.mm.dd} {hh.mm.ss}"
+def read_message(message):
+    msg = bot.reply_to(message, 'Введите название напоминания')
+    bot.register_next_step_handler(msg, read_date)
+
+def read_date(message):
+    data = [message.text]
+    msg = bot.reply_to(message, 'Введите дату напоминания в формате {yyyy.mm.dd}')
+    bot.register_next_step_handler(msg, read_time, data)
+
+def read_time(message, data):
+    data.append(message.text)
+    msg = bot.reply_to(message, 'Введите время напоминания в формате {hh:mm:ss}')
+    bot.register_next_step_handler(msg, compute_note, data)
+
+def compute_note(message, data):
+    data.append(message.text)
+
+    bad_text = "Введены некорректные данные, напоминание {} не было добавлено".format(data[0])
     good_text = 'Напоминание "{}" успешно добавлено!'
 
-    if (len(raw_message) < 4):
-        bot.send_message(chat_id=message.chat.id, text=bad_text)
-        return
-    
     try:
-        timestamp = utils.datetime_to_timestamp(raw_message[-2], raw_message[-1])
-        message_to_save = ' '.join(raw_message[1:-2])
+        timestamp = utils.datetime_to_timestamp(data[-2], data[-1])
+        message_to_save = data[0]
         chat_id=message.chat.id
 
         data = {"message" : message_to_save, "chat_id" : chat_id, "timestamp" : timestamp}
@@ -45,27 +54,32 @@ def save_note(message):
         bot.send_message(chat_id=message.chat.id, text=bad_text)
 
 @bot.message_handler(commands=['add_repeat'])
-def save_repeat_note(message):
-    raw_message = message.text.split()
+def read_message_repeat(message):
+    msg = bot.reply_to(message, 'Введите название напоминания')
+    bot.register_next_step_handler(msg, read_time_repeat)
 
-    bad_text = "Неверно указанная команда. правильный формат: /add_repeat {message} {x}, где x время в секундах"
+def read_time_repeat(message):
+    data = [message.text]
+    msg = bot.reply_to(message, 'Введите интервал повторения напоминания в секундах в формате числа или выражения')
+    bot.register_next_step_handler(msg, compute_note_repeat, data)
+
+def compute_note_repeat(message, data):
+    data.append(message.text)
+
+    bad_text = "Введены некорректные данные, напоминание {} не было добавлено".format(data[0])
     good_text = 'Напоминание "{}" успешно добавлено!'
-
-    if (len(raw_message) < 3):
-        bot.send_message(chat_id=message.chat.id, text=bad_text)
-        return
     
     repeat_time = None
-    if not raw_message[-1].isdigit():
+    if not data[-1].isdigit():
         try:
-            repeat_time = eval(raw_message[-1])
+            repeat_time = eval(data[-1])
         except (SyntaxError, NameError):
             bot.send_message(chat_id=message.chat.id, text=bad_text)
             return
     else:
-        repeat_time = int(raw_message[-1])
+        repeat_time = int(data[-1])
     
-    message_to_save = ' '.join(raw_message[1:-1])
+    message_to_save = data[0]
     chat_id=message.chat.id
     data = {"message" : message_to_save, 
             "chat_id" : chat_id, 
@@ -74,9 +88,10 @@ def save_repeat_note(message):
 
     database.insert_document(database.repeat_notes_collection, data)
 
-    bot.send_message(chat_id=chat_id, text=good_text.format(message_to_save))        
+    bot.send_message(chat_id=chat_id, text=good_text.format(message_to_save)) 
 
-@bot.message_handler(commands=['show_reminders', "dismiss"])
+
+@bot.message_handler(commands=['show', "dismiss"])
 def show_reminders(message):
     data_once = database.find_document(database.notes_collection, {"chat_id" : message.chat.id}, multiple=True)
 
