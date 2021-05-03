@@ -135,15 +135,24 @@ def get_text_messages(message):
 
 
 def remind():
-    data_once = database.find_document(database.notes_collection, {}, multiple=True)
+    data = database.find_document(database.notes_collection, {}, multiple=True)
 
-    for item in data_once:
+    for item in data:
         if utils.get_current_timestamp() >= item["timestamp"]:
             chat_id = item["chat_id"]
             message = item["message"]
 
             database.delete_document(database.notes_collection, {"_id" : item["_id"]})
-            
+
+            bot.send_message(chat_id=chat_id, text=message)
+    
+    data = database.find_document(database.repeat_notes_collection, {}, multiple=True)
+
+    for item in data:
+        if (utils.get_current_timestamp() - item["current_timestamp"]) % item["repeat_time"] == 0:
+            chat_id = item["chat_id"]
+            message = item["message"]
+
             bot.send_message(chat_id=chat_id, text=message)
 
 
