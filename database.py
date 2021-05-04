@@ -5,6 +5,7 @@ client = pymongo.MongoClient(os.environ["MONGODB_URI"])
 db = client['SeriesDB']
 notes_collection = db["notes"]
 repeat_notes_collection = db["repeat_notes"]
+weekly_notes_collection = db["weekly_notes"]
 
 def insert_document(collection, data):
     return collection.insert_one(data).inserted_id

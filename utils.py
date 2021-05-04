@@ -22,3 +22,8 @@ def timestamp_to_date(timestamp : int) -> str:
 
 def get_current_timestamp() -> int:
     return int(time.time())
+
+def get_sec(time_str):
+    """Get Seconds from time."""
+    h, m, s = time_str.split(':')
+    return int(h) * 3600 + int(m) * 60 + int(s)

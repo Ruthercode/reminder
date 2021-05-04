@@ -18,7 +18,7 @@ def send_welcome(message):
     bot.reply_to(message, 
                 '/help - сводка о командах\n' +
                 '/add - добавление разового напоминания напоминания\n' +
-                # "/add_weekly - добавление повторяющегося напоминания в разные дни недели\n" +
+                "/add_weekly - добавление повторяющегося напоминания в разные дни недели\n" +
                 "/add_repeat - добавление повторяющегося напоминания с различным интервалом\n" +
                 "/show - выводит информацию о всех имеющихся напоминаниях" 
                 ) 
@@ -96,7 +96,63 @@ def compute_note_repeat(message, data):
 
     bot.send_message(chat_id=chat_id, text=good_text.format(message_to_save)) 
 
+@bot.message_handler(commands=['add_weekly'])
+def read_message_weekly(message):
+    msg = bot.reply_to(message, 'Введите название напоминания')
+    bot.register_next_step_handler(msg, read_week)
 
+#TODO: Сделать это всё через инлайн клавиатуру
+def read_week(message):
+    data = [message.text]
+
+    msg = bot.send_message(message.chat.id, text="Выберите дни недели и перечислите их через запятую")
+    bot.register_next_step_handler(msg, read_time_weekly, data)
+
+def read_time_weekly(message, data):
+    day_to_int = {"понедельник" : 1, 
+                  "вторник" : 2,
+                  "среда" : 3,
+                  "четврег" : 4,
+                  "пятница" : 5,
+                  "суббота" : 6,
+                  "воскресенье" : 7}
+    days = message.text.lower().split(',')
+    
+    try:
+        days = [day_to_int[item.strip()] for item in days]
+    except (KeyError):
+        bot.send_message(message.chat.id, text="Введён несуществующий день недели")
+        return
+    
+    data.append(list(set(days)))
+
+    msg = bot.reply_to(message, 'Введите время напоминаний')
+    bot.register_next_step_handler(msg, compute_note_weekly, data)
+
+def compute_note_weekly(message, data):
+    bad_text = "Введены некорректные данные, напоминание {} не было добавлено".format(data[0])
+    good_text = 'Напоминание "{}" успешно добавлено!'
+
+    remind_time = message.text
+    try:
+        remind_time = utils.get_sec(remind_time)
+    except (ValueError):
+        bot.send_message(chat_id=message.chat.id, text=bad_text)
+    
+    data.append(remind_time)
+
+    message_to_save = data[0]
+    week = data[1]
+    remind_time = data[2]
+    chat_id=message.chat.id
+
+    data = {"message" : message_to_save, "chat_id" : chat_id, "week" : week, "remind_time": remind_time}
+    database.insert_document(database.weekly_notes_collection, data)
+
+    bot.send_message(chat_id=chat_id, text=good_text.format(message_to_save))
+
+
+#TODO: сделать высвечивание недельных напоминалок
 @bot.message_handler(commands=['show', "dismiss"])
 def show_reminders(message):
     data_once = database.find_document(database.notes_collection, {"chat_id" : message.chat.id}, multiple=True)
@@ -125,6 +181,8 @@ def show_reminders(message):
         msg = bot.reply_to(message, 'Введите номер удаляемого элемента. 0 для отмены, -1 для удаления всего')
         bot.register_next_step_handler(msg, dismiss_reminders, data)
 
+
+#TODO: сделать удаление недельных напоминалок
 def dismiss_reminders(message, data):
     try:
         id_to_delete = int(message.text)
@@ -155,6 +213,7 @@ def get_text_messages(message):
     pass
 
 
+#TODO: сделать отправку еженедельных напоминалок
 def remind():
     data = database.find_document(database.notes_collection, {}, multiple=True)
 
